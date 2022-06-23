@@ -25,36 +25,29 @@ SOFTWARE.
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include "mocked_await_fizzbuzz_producer.hpp"
+#include "fizzbuzz_tests.hpp"
+#include "fizzbuzz_awaiter_mock.hpp"
 
 using namespace testing;
 
 namespace FizzBuzz::MockedAwait
 {
 
-template <typename ResumeType = void, typename SuspendType = bool>
-class AwaitableStrategyMock : public AwaitableStrategy<ResumeType, SuspendType>
-{
-public:
-    MOCK_METHOD(bool, ready, (), (override));
-    MOCK_METHOD(SuspendType, suspend, (std::coroutine_handle<>), (override));
-    MOCK_METHOD(ResumeType, resume, (), (override));
-};
-
 class ConsumerMock : public Consumer {
 public:
-    MOCK_METHOD(Awaitable<bool>, consume, (int value), (override));
-    MOCK_METHOD(Awaitable<bool>, consume, (std::string_view value), (override));
+    MOCK_METHOD(Awaiter<bool>, consume, (int value), (override));
+    MOCK_METHOD(Awaiter<bool>, consume, (std::string_view value), (override));
 };
 
 struct ProducerTestsMockedAwait : Test {
     StrictMock<ConsumerMock> consumerMock;
-    std::shared_ptr<AwaitableStrategyMock<bool>> wantsMoreMock
-        = std::make_shared<NiceMock<AwaitableStrategyMock<bool>>>();
-    std::shared_ptr<AwaitableStrategyMock<bool>> doesNotWantMoreMock
-        = std::make_shared<NiceMock<AwaitableStrategyMock<bool>>>();
+    std::shared_ptr<AwaiterStrategyMock<bool>> wantsMoreMock
+        = std::make_shared<NiceMock<AwaiterStrategyMock<bool>>>();
+    std::shared_ptr<AwaiterStrategyMock<bool>> doesNotWantMoreMock
+        = std::make_shared<NiceMock<AwaiterStrategyMock<bool>>>();
 
-    Awaitable<bool> wantsMore{wantsMoreMock};
-    Awaitable<bool> doesNotWantMore{doesNotWantMoreMock};
+    Awaiter<bool> wantsMore{wantsMoreMock};
+    Awaiter<bool> doesNotWantMore{doesNotWantMoreMock};
 
     ProducerTestsMockedAwait()
     {
@@ -109,5 +102,17 @@ TEST_F(ProducerTestsMockedAwait, consumeFullSequenceForSixteenElements) {
 
     producer(consumerMock);
 }
+
+struct ProducerTestsNotMockedAwait : TestWithSequence {
+    std::stringstream actualStream;
+    StreamConsumerUpToLimit consumer{actualStream, GetParam().size};
+};
+
+TEST_P(ProducerTestsNotMockedAwait, testExpectedSequence) {
+    auto gen = producer(consumer);
+    EXPECT_EQ(actualStream.str(), GetParam().sequence);
+}
+
+INSTANTIATE_TEST_SUITE_P(some, ProducerTestsNotMockedAwait, ValuesIn(Test::someSequences));
 
 }

@@ -25,6 +25,7 @@ SOFTWARE.
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include "mocked_fizzbuzz_producer.hpp"
+#include "fizzbuzz_tests.hpp"
 
 using namespace testing;
 
@@ -76,5 +77,18 @@ TEST_F(ProducerTestsMocked, consumeFullSequenceForSixteenElements) {
     EXPECT_CALL(consumerStrategyMock, consume(16)).WillOnce([&]{wantsMore=false;});
     producer(consumer);
 }
+
+struct ProducerTestsNotMocked : TestWithSequence {
+    std::stringstream actualStream;
+    StreamConsumerUpToLimit consumerStrategy{actualStream, GetParam().size};
+    Consumer consumer{consumerStrategy};
+};
+
+TEST_P(ProducerTestsNotMocked, testExpectedSequence) {
+    auto gen = producer(consumer);
+    EXPECT_EQ(actualStream.str(), GetParam().sequence);
+}
+
+INSTANTIATE_TEST_SUITE_P(some, ProducerTestsNotMocked, ValuesIn(Test::someSequences));
 
 }

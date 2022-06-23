@@ -22,36 +22,34 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
-#include "fizzbuzz_dispatcher.hpp"
+#include "mocked_fizzbuzz_dispatcher.hpp"
 #include <ostream>
 
-namespace FizzBuzz
+namespace FizzBuzz::Mocked
 {
 
-Dispatcher::AwaitNumber Dispatcher::waitFor(int number, int priority)
+Dispatcher::AwaitNumber RealDispatcher::waitFor(int number, int priority)
 {
-    return AwaitNumber{
-        .dispatcher = *this,
-        .number = number,
-        .priority = priority};
+    return AwaitNumber(std::make_shared<AwaitNumberStrategy>(
+            *this, number, priority));
 }
 
-Dispatcher::AwaitAnyNumber Dispatcher::waitForUnwantedNumber()
+Dispatcher::AwaitAnyNumber RealDispatcher::waitForUnwantedNumber()
 {
-    return AwaitAnyNumber{*this};
+    return AwaitAnyNumber(std::make_shared<AwaitAnyNumberStrategy>(*this));
 }
 
-void Dispatcher::waitFor(int number, int priority, std::coroutine_handle<> handle)
+void RealDispatcher::waitFor(int number, int priority, std::coroutine_handle<> handle)
 {
     awaiters[number][priority] = handle;
 }
 
-void Dispatcher::waitForUnwantedNumber(std::coroutine_handle<> handle)
+void RealDispatcher::waitForUnwantedNumber(std::coroutine_handle<> handle)
 {
     awaiterForAnyOtherNumber = handle;
 }
 
-void Dispatcher::dispatch(int number)
+void RealDispatcher::dispatch(int number)
 {
     currentNumber = number;
     auto it = awaiters.find(number);
@@ -82,7 +80,7 @@ Procedure printNumber(Dispatcher& dispatcher, std::ostream& os)
 }
 
 void fizzbuzz(std::ostream& os, int size) {
-    Dispatcher dispatcher;
+    RealDispatcher dispatcher;
     PrintString fizz{.modulo=3, .priority=1, .str="fizz"};
     PrintString buzz{.modulo=5, .priority=2, .str="buzz"};
     auto p1 = fizz.run(dispatcher, os);

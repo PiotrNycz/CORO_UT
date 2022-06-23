@@ -21,54 +21,31 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+#pragma once
 
 #include <coroutine>
 #include <exception>
 #include <string_view>
 #include <ostream>
 #include <memory>
+#include "fizzbuzz_awaiter.hpp"
 
 namespace FizzBuzz::MockedAwait
 {
 
-template <typename ResumeType = void, typename SuspendType = bool>
-class AwaitableStrategy
-{
-public:
-    virtual ~AwaitableStrategy() = default;
-
-    virtual bool ready() = 0;
-    virtual SuspendType suspend(std::coroutine_handle<>) = 0;
-    virtual ResumeType resume() = 0;
-};
-
-template <typename ResumeType = void, typename SuspendType = bool>
-class Awaitable
-{
-public:
-    Awaitable(std::shared_ptr<AwaitableStrategy<ResumeType, SuspendType>> strategy)
-        : strategy(std::move(strategy))
-    {}
-
-    bool await_ready() { return strategy->ready(); }
-    SuspendType await_suspend(std::coroutine_handle<> h) { return strategy->suspend(h); }
-    ResumeType await_resume() { return strategy->resume(); }
-private:
-    std::shared_ptr<AwaitableStrategy<ResumeType, SuspendType>> strategy;
-};
 
 class Consumer {
 public:
     virtual ~Consumer() = default;
-    virtual Awaitable<bool> consume(int value) = 0;
-    virtual Awaitable<bool> consume(std::string_view value) = 0;
+    virtual Awaiter<bool> consume(int value) = 0;
+    virtual Awaiter<bool> consume(std::string_view value) = 0;
 };
 
 
 class StreamConsumerUpToLimit : public Consumer {
 public:
     template <typename T>
-    struct AwaitValue : AwaitableStrategy<bool> {
+    struct AwaitValue : AwaiterStrategy<bool> {
         AwaitValue(T value, std::ostream* os)
             : value(std::move(value)), os(os)
         {}
@@ -88,26 +65,19 @@ public:
     };
 
     StreamConsumerUpToLimit(std::ostream& os, unsigned limit) : os(os), limit(limit) {}
-    Awaitable<bool> consume(int value) override {
-        awaitInt->value = value;
-        awaitInt->os = current++ < limit ? &os : nullptr;
-        return Awaitable<bool, bool>(awaitInt);
+    Awaiter<bool> consume(int value) override {
+        return Awaiter<bool>(std::make_shared<AwaitValue<int>>(
+            value, current++ < limit ? &os : nullptr));
     }
-    Awaitable<bool> consume(std::string_view value) override {
-        awaitString->value = value;
-        awaitString->os = current++ < limit ? &os : nullptr;
-        return Awaitable<bool, bool>(awaitString);
+    Awaiter<bool> consume(std::string_view value) override {
+        return Awaiter<bool>(std::make_shared<AwaitValue<std::string_view>>(
+            value, current++ < limit ? &os : nullptr));
     }
 
 private:
     std::ostream& os;
     const unsigned limit;
     unsigned current = 0;
-
-    std::shared_ptr<AwaitValue<int>> awaitInt =
-        std::make_shared<AwaitValue<int>>(0, nullptr);
-    std::shared_ptr<AwaitValue<std::string_view>> awaitString =
-        std::make_shared<AwaitValue<std::string_view>>("", nullptr);
 };
 
 class Producer {

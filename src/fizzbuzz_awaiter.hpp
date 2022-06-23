@@ -21,33 +21,38 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+#pragma once
 
-#include <gtest/gtest.h>
-#include "fizzbuzz_generator.hpp"
-#include "fizzbuzz_tests.hpp"
-#include <vector>
-#include <ranges>
-
-using namespace testing;
+#include <coroutine>
+#include <memory>
 
 namespace FizzBuzz
 {
 
-struct GeneratorTests : Test, WithParamInterface<unsigned> {
+template <typename ResumeType = void, typename SuspendType = bool>
+class AwaiterStrategy
+{
+public:
+    virtual ~AwaiterStrategy() = default;
+
+    virtual bool ready() = 0;
+    virtual SuspendType suspend(std::coroutine_handle<>) = 0;
+    virtual ResumeType resume() = 0;
 };
 
+template <typename ResumeType = void, typename SuspendType = bool>
+class Awaiter
+{
+public:
+    Awaiter(std::shared_ptr<AwaiterStrategy<ResumeType, SuspendType>> strategy)
+        : strategy(std::move(strategy))
+    {}
 
-TEST_P(GeneratorTests, testExpectedSequence) {
-    ASSERT_LE(GetParam(), expectedSequence.size()) << " internal test error";
-    auto gen = generator();
-    for (auto expectedResult : expectedSequence | std::views::take(GetParam())) {
-        auto actualResult = gen.next();
-        ASSERT_TRUE(actualResult);
-        EXPECT_EQ(*actualResult, expectedResult);
-    }
-}
-
-INSTANTIATE_TEST_SUITE_P(upTo15, GeneratorTests, Range<unsigned>(0, 16));
-INSTANTIATE_TEST_SUITE_P(moreThan15, GeneratorTests, Range<unsigned>(16,  1 + Test::expectedSequence.size()));
+    bool await_ready() { return strategy->ready(); }
+    SuspendType await_suspend(std::coroutine_handle<> h) { return strategy->suspend(h); }
+    ResumeType await_resume() { return strategy->resume(); }
+private:
+    std::shared_ptr<AwaiterStrategy<ResumeType, SuspendType>> strategy;
+};
 
 }

@@ -21,33 +21,21 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+#pragma once
 
-#include <gtest/gtest.h>
-#include "fizzbuzz_generator.hpp"
-#include "fizzbuzz_tests.hpp"
-#include <vector>
-#include <ranges>
-
-using namespace testing;
+#include <gmock/gmock.h>
+#include "fizzbuzz_awaiter.hpp"
 
 namespace FizzBuzz
 {
 
-struct GeneratorTests : Test, WithParamInterface<unsigned> {
+template <typename ResumeType = void, typename SuspendType = bool>
+class AwaiterStrategyMock : public AwaiterStrategy<ResumeType, SuspendType>
+{
+public:
+    MOCK_METHOD(bool, ready, (), (override));
+    MOCK_METHOD(SuspendType, suspend, (std::coroutine_handle<>), (override));
+    MOCK_METHOD(ResumeType, resume, (), (override));
 };
-
-
-TEST_P(GeneratorTests, testExpectedSequence) {
-    ASSERT_LE(GetParam(), expectedSequence.size()) << " internal test error";
-    auto gen = generator();
-    for (auto expectedResult : expectedSequence | std::views::take(GetParam())) {
-        auto actualResult = gen.next();
-        ASSERT_TRUE(actualResult);
-        EXPECT_EQ(*actualResult, expectedResult);
-    }
-}
-
-INSTANTIATE_TEST_SUITE_P(upTo15, GeneratorTests, Range<unsigned>(0, 16));
-INSTANTIATE_TEST_SUITE_P(moreThan15, GeneratorTests, Range<unsigned>(16,  1 + Test::expectedSequence.size()));
 
 }

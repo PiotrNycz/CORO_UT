@@ -21,6 +21,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+#pragma once
 
 #include <coroutine>
 #include <exception>
@@ -64,7 +65,7 @@ public:
     using handle_type = std::coroutine_handle<promise_type>;
 
     Producer(handle_type handle) : handle(handle) {}
-    ~Producer() { handle.destroy(); }
+    ~Producer() { if (handle) handle.destroy(); }
 
     struct promise_type {
         std::exception_ptr exception;

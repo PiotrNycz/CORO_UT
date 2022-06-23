@@ -21,33 +21,37 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
+#pragma once
 
 #include <gtest/gtest.h>
-#include "fizzbuzz_generator.hpp"
-#include "fizzbuzz_tests.hpp"
 #include <vector>
-#include <ranges>
-
-using namespace testing;
+#include <variant>
+#include <string>
+#include <string_view>
 
 namespace FizzBuzz
 {
 
-struct GeneratorTests : Test, WithParamInterface<unsigned> {
+struct Test : testing::Test {
+
+    using Element = std::variant<int,std::string_view>;
+    static const std::vector<Element> expectedSequence;
+    static std::string expectedSequenceOfSize(unsigned size);
+
+    struct Sequence {
+        Sequence();
+        Sequence(unsigned size);
+
+        unsigned size;
+        std::string sequence;
+
+        friend std::ostream& operator<<(std::ostream& os, const Sequence& rhs);
+    };
+
+    static const std::vector<Sequence> someSequences;
 };
 
-
-TEST_P(GeneratorTests, testExpectedSequence) {
-    ASSERT_LE(GetParam(), expectedSequence.size()) << " internal test error";
-    auto gen = generator();
-    for (auto expectedResult : expectedSequence | std::views::take(GetParam())) {
-        auto actualResult = gen.next();
-        ASSERT_TRUE(actualResult);
-        EXPECT_EQ(*actualResult, expectedResult);
-    }
-}
-
-INSTANTIATE_TEST_SUITE_P(upTo15, GeneratorTests, Range<unsigned>(0, 16));
-INSTANTIATE_TEST_SUITE_P(moreThan15, GeneratorTests, Range<unsigned>(16,  1 + Test::expectedSequence.size()));
+struct TestWithSequence : Test, testing::WithParamInterface<Test::Sequence> {
+};
 
 }

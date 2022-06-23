@@ -29,8 +29,9 @@ SOFTWARE.
 #include <utility>
 #include <iosfwd>
 #include <string_view>
+#include "fizzbuzz_awaiter.hpp"
 
-namespace FizzBuzz
+namespace FizzBuzz::Mocked
 {
 
 class Procedure {
@@ -58,37 +59,56 @@ public:
 
 struct Dispatcher {
 public:
-    struct AwaitNumber {
-        Dispatcher& dispatcher;
-        int number;
-        int priority;
-        bool await_ready() {
-            return false;
-        }
-        void await_suspend(std::coroutine_handle<> handle) {
-            dispatcher.waitFor(number, priority, handle);
-        }
-        void await_resume() {}
-    };
-    struct AwaitAnyNumber {
-        Dispatcher& dispatcher;
-        bool await_ready() {
-            return false;
-        }
-        void await_suspend(std::coroutine_handle<> handle) {
-            dispatcher.waitForUnwantedNumber(handle);
-        }
-        int await_resume() {
-            return dispatcher.currentNumber;
-        }
-    };
 
-    AwaitNumber waitFor(int number, int priority);
-    AwaitAnyNumber waitForUnwantedNumber();
+    using AwaitNumber = Awaiter<void,void>;
+    using AwaitAnyNumber = Awaiter<int,void>;
+
+    virtual ~Dispatcher() = default;
+    virtual AwaitNumber waitFor(int number, int priority) = 0;
+    virtual AwaitAnyNumber waitForUnwantedNumber() = 0;
+};
+
+class RealDispatcher : public Dispatcher {
+public:
+
+    AwaitNumber waitFor(int number, int priority) override;
+    AwaitAnyNumber waitForUnwantedNumber() override;
 
     void dispatch(int number);
 
 private:
+    struct AwaitNumberStrategy : AwaiterStrategy<void,void> {
+        AwaitNumberStrategy(RealDispatcher& dispatcher, int number, int priority)
+            : number(number), priority(priority), dispatcher(dispatcher)
+        {}
+        RealDispatcher& dispatcher;
+        int number;
+        int priority;
+        bool ready() override {
+            return false;
+        }
+        void suspend(std::coroutine_handle<> handle) override {
+            dispatcher.waitFor(number, priority, handle);
+        }
+        void resume() override {}
+    };
+
+    struct AwaitAnyNumberStrategy : AwaiterStrategy<int,void> {
+        AwaitAnyNumberStrategy(RealDispatcher& dispatcher)
+            : dispatcher(dispatcher)
+        {}
+        RealDispatcher& dispatcher;
+        bool ready() override {
+            return false;
+        }
+        void suspend(std::coroutine_handle<> handle) override {
+            dispatcher.waitForUnwantedNumber(handle);
+        }
+        int resume() override {
+            return dispatcher.currentNumber;
+        }
+    };
+
     void waitFor(int number, int priority, std::coroutine_handle<> handle);
     void waitForUnwantedNumber(std::coroutine_handle<> handle);
 
@@ -107,7 +127,7 @@ struct PrintString
     std::string_view str;
     Procedure run(Dispatcher& dispatcher, std::ostream& os);
 };
-Procedure other(Dispatcher& dispatcher, std::ostream& os);
+Procedure printNumber(Dispatcher& dispatcher, std::ostream& os);
 
 void fizzbuzz(std::ostream& os, int size);
 

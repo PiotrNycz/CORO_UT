@@ -24,73 +24,22 @@ SOFTWARE.
 
 #include <gtest/gtest.h>
 #include "fizzbuzz_dispatcher.hpp"
-#include <sstream>
-#include <algorithm>
+#include "fizzbuzz_tests.hpp"
 
 using namespace testing;
 
 namespace FizzBuzz
 {
 
-struct DispatcherTestsBase : Test {
-    struct Param {
-        unsigned sequenceSize;
-        std::string sequence;
-    };
-};
-
-struct DispatcherTests : DispatcherTestsBase, WithParamInterface<DispatcherTestsBase::Param> {
+struct DispatcherTests : TestWithSequence {
     std::stringstream actualStream;
-
-    static inline std::string fullSequence =
-        "1\n"
-        "2\n"
-        "fizz\n"
-        "4\n"
-        "buzz\n"
-        "fizz\n"
-        "7\n"
-        "8\n"
-        "fizz\n"
-        "buzz\n"
-        "11\n"
-        "fizz\n"
-        "13\n"
-        "14\n"
-        "fizzbuzz\n"
-        "16\n"
-        "17\n"
-        "fizz\n"
-        "19\n"
-        "buzz\n"
-        "fizz\n"
-        "22\n"
-        "23\n"
-        "fizz\n"
-        "buzz\n"
-        "26\n"
-        "fizz\n"
-        "28\n"
-        "29\n"
-        "fizzbuzz\n"
-        "31\n";
-    static std::string getSequenceOfSize(unsigned size) {
-        auto it = std::find_if(fullSequence.begin(), fullSequence.end(), [&](char c) { return c=='\n' && size-- <= 1u; });
-        return std::string(fullSequence.begin(), std::next(it));
-    }
 };
 
 TEST_P(DispatcherTests, testExpectedSequence) {
-    fizzbuzz(actualStream, GetParam().sequenceSize);
+    fizzbuzz(actualStream, GetParam().size);
     EXPECT_EQ(actualStream.str(), GetParam().sequence);
 }
 
-INSTANTIATE_TEST_SUITE_P(variousSequences, DispatcherTests,
-    Values(
-        DispatcherTests::Param{0, ""},
-        DispatcherTests::Param{1, DispatcherTests::getSequenceOfSize(1)},
-        DispatcherTests::Param{2, DispatcherTests::getSequenceOfSize(2)},
-        DispatcherTests::Param{15, DispatcherTests::getSequenceOfSize(15)},
-        DispatcherTests::Param{31, DispatcherTests::fullSequence}
-    ));
+INSTANTIATE_TEST_SUITE_P(some, DispatcherTests, ValuesIn(Test::someSequences));
+
 }

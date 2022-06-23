@@ -24,61 +24,16 @@ SOFTWARE.
 
 #include <gtest/gtest.h>
 #include "fizzbuzz_producer.hpp"
-#include <sstream>
-#include <algorithm>
+#include "fizzbuzz_tests.hpp"
 
 using namespace testing;
 
 namespace FizzBuzz
 {
 
-struct ProducerTestsBase : Test {
-    struct Param {
-        unsigned sequenceSize;
-        std::string sequence;
-    };
-};
-
-struct ProducerTests : ProducerTestsBase, WithParamInterface<ProducerTestsBase::Param> {
+struct ProducerTests : TestWithSequence {
     std::stringstream actualStream;
-    Consumer consumer{actualStream, GetParam().sequenceSize};
-
-    static inline std::string fullSequence =
-        "1\n"
-        "2\n"
-        "fizz\n"
-        "4\n"
-        "buzz\n"
-        "fizz\n"
-        "7\n"
-        "8\n"
-        "fizz\n"
-        "buzz\n"
-        "11\n"
-        "fizz\n"
-        "13\n"
-        "14\n"
-        "fizzbuzz\n"
-        "16\n"
-        "17\n"
-        "fizz\n"
-        "19\n"
-        "buzz\n"
-        "fizz\n"
-        "22\n"
-        "23\n"
-        "fizz\n"
-        "buzz\n"
-        "26\n"
-        "fizz\n"
-        "28\n"
-        "29\n"
-        "fizzbuzz\n"
-        "31\n";
-    static std::string getSequenceOfSize(unsigned size) {
-        auto it = std::find_if(fullSequence.begin(), fullSequence.end(), [&](char c) { return c=='\n' && size-- <= 1u; });
-        return std::string(fullSequence.begin(), std::next(it));
-    }
+    Consumer consumer{actualStream, GetParam().size};
 };
 
 TEST_P(ProducerTests, testExpectedSequence) {
@@ -86,13 +41,6 @@ TEST_P(ProducerTests, testExpectedSequence) {
     EXPECT_EQ(actualStream.str(), GetParam().sequence);
 }
 
-INSTANTIATE_TEST_SUITE_P(upTo15, ProducerTests,
-    Values(
-        ProducerTests::Param{0, ""},
-        ProducerTests::Param{1, ProducerTests::getSequenceOfSize(1)},
-        ProducerTests::Param{2, ProducerTests::getSequenceOfSize(2)},
-        ProducerTests::Param{15, ProducerTests::getSequenceOfSize(15)},
-        ProducerTests::Param{31, ProducerTests::fullSequence}
-    ));
+INSTANTIATE_TEST_SUITE_P(some, ProducerTests, ValuesIn(Test::someSequences));
 
 }
