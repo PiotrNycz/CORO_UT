@@ -26,9 +26,10 @@ SOFTWARE.
 #include <compare>
 #include <exception>
 #include <map>
-#include <optional>
+#include <list>
 #include <utility>
 #include <iosfwd>
+#include <string_view>
 
 namespace FizzBuzz
 {
@@ -39,7 +40,7 @@ public:
     using handle_type = std::coroutine_handle<promise_type>;
 
     Procedure(handle_type handle) : handle(handle) {}
-    ~Procedure() { handle.destroy(); }
+    ~Procedure() { if (handle) handle.destroy(); }
 
     struct promise_type {
         std::exception_ptr exception;
@@ -98,12 +99,17 @@ private:
         auto operator<=>(const Key&) const = default;
     };
     std::map<Key, std::coroutine_handle<>> awaiters;
-    std::optional<std::coroutine_handle<>> awaitAnyOtherNumber;
-    int currentNumber;
+    std::list<std::coroutine_handle<>> awaitersForAnyOtherNumber;
+    int currentNumber{};
 };
 
-Procedure fizz(Dispatcher& dispatcher, int priority, std::ostream& os);
-Procedure buzz(Dispatcher& dispatcher, int priority, std::ostream& os);
+struct PrintString
+{
+    int modulo;
+    int priority;
+    std::string_view str;
+    Procedure run(Dispatcher& dispatcher, std::ostream& os);
+};
 Procedure other(Dispatcher& dispatcher, std::ostream& os);
 
 void fizzbuzz(std::ostream& os, int size);

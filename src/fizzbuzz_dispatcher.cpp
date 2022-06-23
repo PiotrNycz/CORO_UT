@@ -48,7 +48,7 @@ void Dispatcher::waitFor(int number, int priority, std::coroutine_handle<> handl
 
 void Dispatcher::waitForUnwantedNumber(std::coroutine_handle<> handle)
 {
-    awaitAnyOtherNumber = handle;
+    awaitersForAnyOtherNumber.push_back(handle);
 }
 
 
@@ -56,10 +56,11 @@ void Dispatcher::dispatch(int number)
 {
     currentNumber = number;
     auto it = awaiters.begin();
-    if (awaitAnyOtherNumber && it == awaiters.end() || it->first.number != currentNumber)
+    if (it == awaiters.end() || it->first.number != currentNumber)
     {
-        awaitAnyOtherNumber->resume();
-        awaitAnyOtherNumber = std::nullopt;
+        auto awaitersForAnyOtherNumber = std::move(this->awaitersForAnyOtherNumber);
+        for (auto handle : awaitersForAnyOtherNumber)
+            handle.resume();
         return;
     }
     for (;
@@ -70,23 +71,15 @@ void Dispatcher::dispatch(int number)
     }
 }
 
-Procedure fizz(Dispatcher& dispatcher, int priority, std::ostream& os)
+Procedure PrintString::run(Dispatcher& dispatcher, std::ostream& os)
 {
-    for (int n = 3;; n += 3) {
+    for (int n = modulo;; n += modulo) {
         co_await dispatcher.waitFor(n, priority);
-        os << "fizz";
+        os << str;
     }
 }
 
-Procedure buzz(Dispatcher& dispatcher, int priority, std::ostream& os)
-{
-    for (int n = 5;; n += 5) {
-        co_await dispatcher.waitFor(n, priority);
-        os << "buzz";
-    }
-}
-
-Procedure other(Dispatcher& dispatcher, std::ostream& os)
+Procedure printNumber(Dispatcher& dispatcher, std::ostream& os)
 {
     for (;;) {
         os << co_await dispatcher.waitForUnwantedNumber();
@@ -95,9 +88,11 @@ Procedure other(Dispatcher& dispatcher, std::ostream& os)
 
 void fizzbuzz(std::ostream& os, int size) {
     Dispatcher dispatcher;
-    auto p1 = fizz(dispatcher, 1, os);
-    auto p2 = buzz(dispatcher, 2, os);
-    auto p3 = other(dispatcher, os);
+    PrintString fizz{.modulo=3, .priority=1, .str="fizz"};
+    PrintString buzz{.modulo=5, .priority=2, .str="buzz"};
+    auto p1 = fizz.run(dispatcher, os);
+    auto p2 = buzz.run(dispatcher, os);
+    auto p3 = printNumber(dispatcher, os);
     for (int n = 1; n <= size; ++n) {
         dispatcher.dispatch(n);
         os << '\n';

@@ -24,9 +24,12 @@ cmake_minimum_required(VERSION 3.14)
 project(CORO_UT)
 
 set(CMAKE_CXX_STANDARD 20)
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Debug)
+endif()
 
 # googletest
-ADD_SUBDIRECTORY(../../googletest ../../googletest_build)
+ADD_SUBDIRECTORY(../../googletest googletest_build)
 enable_testing()
 include_directories(${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
 
